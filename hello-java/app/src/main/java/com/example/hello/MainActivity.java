@@ -2,7 +2,6 @@ package com.example.hello;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.view.Gravity;
 import android.view.View;
 import android.widget.TextView;
 
@@ -10,13 +9,13 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        // 画面に表示するテキストを作る
-        TextView textView = new TextView(this);
-        textView.setText("Hello, Android World! (Java版)\n\n画面をタップすると終了します");
-        textView.setTextSize(24f);
-        textView.setGravity(Gravity.CENTER);
-        
+
+        // XMLレイアウトファイルを画面にセットする
+        setContentView(R.layout.activity_main);
+
+        // XMLで定義したTextViewの部品を取得する
+        TextView textView = findViewById(R.id.text_view);
+
         // タップされた時の処理
         textView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -25,7 +24,5 @@ public class MainActivity extends Activity {
             }
         });
         
-        // テキストを画面にセットする
-        setContentView(textView);
     }
 }
