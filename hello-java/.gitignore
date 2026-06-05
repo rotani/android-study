@@ -1,0 +1,12 @@
+# ビルドで生成されるキャッシュや中間ファイル
+.gradle/
+build/
+app/build/
+
+# ローカル環境固有のパス設定ファイル（SDKの場所など）
+local.properties
+
+# その他IDEの設定ファイルなど
+.idea/
+*.iml
+.DS_Store

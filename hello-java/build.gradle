@@ -1,0 +1,17 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.1.1'
+    }
+}
+
+// 追加：アプリ本体の部品をダウンロードする場所を指定
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
