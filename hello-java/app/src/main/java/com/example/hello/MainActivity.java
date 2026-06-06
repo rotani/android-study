@@ -1,28 +1,20 @@
 package com.example.hello;
 
-import android.app.Activity;
 import android.os.Bundle;
-import android.view.View;
-import android.widget.TextView;
+import androidx.appcompat.app.AppCompatActivity; // 通常の Activity ではなくこちらを使う
 
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        // XMLレイアウトファイルを画面にセットする
+        // 空箱のレイアウトをセット
         setContentView(R.layout.activity_main);
 
-        // XMLで定義したTextViewの部品を取得する
-        TextView textView = findViewById(R.id.text_view);
-
-        // タップされた時の処理
-        textView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                finish(); // アプリを終了する
-            }
-        });
-        
+        // 初回起動時のみ、空箱（fragment_container）の中に MainFragment をはめ込む
+        if (savedInstanceState == null) {
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, new MainFragment())
+                    .commit();
+        }
     }
 }

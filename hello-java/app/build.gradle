@@ -14,3 +14,7 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+dependencies {
+    // Fragment や最新の機能を使うためのライブラリを追加
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+}
