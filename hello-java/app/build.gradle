@@ -17,4 +17,10 @@ android {
 dependencies {
     // Fragment や最新の機能を使うためのライブラリを追加
     implementation 'androidx.appcompat:appcompat:1.6.1'
+    // ViewModel と LiveData を使うためのライブラリを追加
+    implementation 'androidx.lifecycle:lifecycle-viewmodel:2.6.2'
+    implementation 'androidx.lifecycle:lifecycle-livedata:2.6.2'
+    
+    // Kotlinのバージョン衝突（Duplicate classエラー）を解決するためのBOMを追加
+    implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.22')
 }

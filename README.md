@@ -2,8 +2,7 @@
 
 ## クラス図：フレームワークとユーザーコードの関係
 Android開発の基本は、「**Android OSが用意してくれているベース（親クラス）を引き継いで（継承して）、自分オリジナルの機能を追加する**」という形をとります。
-
-以下の図は、Android側（提供フレームワーク）とユーザー側の境界線を示したもの。
+今回はそこに**MVVMアーキテクチャ**が加わり、役割分担が明確になりました。
 
 ```mermaid
 classDiagram
@@ -15,86 +14,95 @@ classDiagram
             +onCreateView()
             +onViewCreated()
         }
-        class View
-        class TextView
-        class LayoutInflater {
-            +inflate()
-        }
+        class ViewModel
+        class LiveData
+        class Observer
     }
 
-    namespace User_Code {
+    namespace View_Layer {
         class MainActivity
         class MainFragment
+        class SecondFragment
     }
     
-    namespace Resources {
-        class XML_Layouts {
-            <<xml>>
-            activity_main.xml
-            fragment_main.xml
+    namespace ViewModel_Layer {
+        class MainViewModel {
+            +moveToPage2()
+        }
+        class AppState {
+            <<enumeration>>
+            PAGE_1
+            PAGE_2
         }
     }
-
+    
     AppCompatActivity <|-- MainActivity : 継承 (extends)
     Fragment <|-- MainFragment : 継承 (extends)
-    View <|-- TextView : 継承
-
-    MainActivity ..> XML_Layouts : setContentView() で読み込み
-    MainFragment ..> XML_Layouts : inflate() で読み込み
-    MainFragment ..> TextView : findViewById() で操作
+    Fragment <|-- SecondFragment : 継承 (extends)
+    ViewModel <|-- MainViewModel : 継承 (extends)
+    
+    MainActivity ..> MainViewModel : 監視 (observe)
+    MainFragment ..> MainViewModel : 報告 (moveToPage2)
+    MainViewModel o-- AppState : 状態を保持
 ```
 
-### 【図の解説】
+### 【クラス図の解説】
 
-- **継承（`<|--`）**： `MainActivity`は`AppCompatActivity`を、`MainFragment`は`Fragment`を継承しています。これにより、画面を表示したり、OSからのイベント（タップなど）を受け取ったりする複雑な仕組みをゼロから書かずに済みます。
-- **XML（設計図）**： XMLはあくまで「こんな見た目にしてね」という**テキストベースの設計図**です。
-- **LayoutInflater**： これはAndroidが提供する「大工さん」のようなクラスです。XML（設計図）を読み込んで、実際のJava上のオブジェクト（`View`や`TextView`など）をメモリ上に組み立ててくれます。これを「**インフレート（Inflate = 膨らませる、実体化する）**」と呼びます。
+- **View Layer（Activity/Fragment）**: 画面の表示とユーザー操作の受け付けのみを担当します。「次の画面が何か」という判断は行いません。
+- **ViewModel Layer**: アプリの「状態（AppState）」を保持し、Viewからの報告を受けて状態を更新します。
+- **単方向データフロー**: Fragment ➔ (報告) ➔ ViewModel ➔ (状態変更・通知) ➔ Activity という、矢印が一方通行で回る設計になっています。
+- **継承（`<|--`）**: `MainActivity`は`AppCompatActivity`を、`MainFragment`などは`Fragment`を、`MainViewModel`は`ViewModel`を継承し、Androidフレームワークの強力な機能を利用しています。
 
 ---
 
-## シーケンス図：画面が作られてからタップされるまで
+## シーケンス図：MVVMとステートマシンによる画面遷移
 
-アプリが起動してから画面（XML）が読み込まれ、ユーザーがタップしてアプリが終了するまでの「時間の流れ（ライフサイクル）」。
+アプリが起動し、ユーザーがボタンを押して画面が切り替わるまでの「時間の流れ」です。
 
 ```mermaid
 sequenceDiagram
     participant OS as Android OS
     participant Activity as MainActivity
+    participant VM as MainViewModel
     participant Fragment as MainFragment
-    participant Inflater as LayoutInflater
-    participant View as View (TextView等)
 
     Note over OS, Activity: --- アプリ起動 ---
-    OS->>Activity: 1. アプリ起動 (onCreate呼び出し)
+    OS->>Activity: 1. アプリ起動 (onCreate)
     activate Activity
     
-    Activity->>Inflater: 2. setContentView(activity_main.xml)
-    Inflater-->>Activity: activity_main.xml を実体化(空箱を作る)
+    Activity->>VM: 2. ViewModelを取得
+    Activity->>VM: 3. AppStateを監視 (observe)
+    VM-->>Activity: 4. 初期状態(PAGE_1)を通知
 
-    Activity->>Activity: 3. Fragmentを空箱にセット (beginTransaction)
+    Activity->>Activity: 5. PAGE_1なのでMainFragmentをセット
+    deactivate Activity
     
     Note over OS, Fragment: --- Fragmentの生成 ---
-    OS->>Fragment: 4. onCreateView() 呼び出し
+    OS->>Fragment: 6. 画面生成 (onCreateView等)
     activate Fragment
-    Fragment->>Inflater: 5. inflate(fragment_main.xml)
-    Inflater-->>Fragment: fragment_main.xml を実体化(TextView等ができる)
-    
-    OS->>Fragment: 6. onViewCreated() 呼び出し
-    Fragment->>View: 7. findViewById() で実体化したTextViewを取得
-    Fragment->>View: 8. setOnClickListener() で「タップされた時の処理」を登録
+    Fragment->>Fragment: 7. ボタンにクリックイベントを登録
     deactivate Fragment
-    deactivate Activity
 
-    Note over OS, View: --- ユーザーが画面を操作 ---
+    Note over OS, Fragment: --- ユーザーが画面を操作 ---
     
-    OS->>View: 9. 画面(TextView)をタップ！
-    View->>Fragment: 10. onClick() が呼ばれる
-    Fragment->>Activity: 11. finishAndRemoveTask() でActivityを終了
-    Activity-->>OS: アプリ終了
+    OS->>Fragment: 8. 「次の画面へ」ボタンをタップ！
+    activate Fragment
+    Fragment->>VM: 9. moveToPage2() を呼び出す（報告）
+    deactivate Fragment
+    
+    activate VM
+    VM->>VM: 10. AppState を PAGE_2 に更新
+    VM-->>Activity: 11. 状態変化(PAGE_2)を通知 (onChanged)
+    deactivate VM
+    
+    activate Activity
+    Activity->>Activity: 12. PAGE_2なのでSecondFragmentに切り替え
+    deactivate Activity
 ```
 
-### 【図の解説とXMLの役割】
+### 【シーケンス図の解説：MVVMの魔法】
 
-- **主導権はAndroid OSにある（1, 4, 6, 9）**: 通常のJavaプログラムは `public static void main(String[] args)` から順番に動きますが、Androidでは「**OSが必要なタイミングで、ユーザが作成したクラスのメソッド（`onCreate`など）を呼び出す**」という動きをします。
-- **XMLからViewへの変換（2, 5）**: `MainActivity` の `onCreate` や、`MainFragment` の `onCreateView` の中で XML ファイルを指定しています。ここで初めて、ただのテキストだったXMLが、画面に表示できるメモリ上のオブジェクト（View）に生まれ変わります。
-- **Viewの操作（7, 8）**: `onViewCreated` は、「XMLからViewへの変換が完了した直後」に呼ばれるメソッドです。画面の部品はすでに完成しているので、ここで `findViewById` を使って特定の部品（今回は `text_view`）をプログラム側に引っ張ってきて、タップイベントなどを仕込みます。
+- **主導権はAndroid OSにある（1, 6, 8）**: Androidでは「OSが必要なタイミングで、ユーザが作成したクラスのメソッド（`onCreate`やタップイベントなど）を呼び出す」という動きをします。
+- **Fragmentの責務軽減 (8, 9)**: 以前はFragment自身が `SecondFragment` を呼び出していましたが、MVVMでは単に「ボタンが押されました」とViewModelに報告するだけになりました。
+- **LiveDataによるリアクティブな動き (10, 11, 12)**: ViewModelの内部状態が変わると、LiveDataを通じて自動的にActivityへ通知が飛びます。Activityは「状態がPAGE_2になったから、2ページ目を出す」というリアクティブ（反応的）な動きをしています。
+- **関心の分離**: これにより、「画面の見た目とタップ検知（Fragment）」「今の状態と次にどうなるかのルール（ViewModel）」「状態に合わせた画面の切り替え（Activity）」という3つの役割が綺麗に分離されました。

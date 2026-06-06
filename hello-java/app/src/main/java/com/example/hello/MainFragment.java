@@ -9,6 +9,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 public class MainFragment extends Fragment {
 
@@ -33,13 +34,16 @@ public class MainFragment extends Fragment {
             }
         });
 
+        // MainActivityが持っているのと同じ ViewModel を取得する
+        MainViewModel viewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
+
         Button buttonNext = view.findViewById(R.id.button_next);
         buttonNext.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                getParentFragmentManager().beginTransaction()
-                        .replace(R.id.fragment_container, new SecondFragment())
-                        .commit();
+                // Fragment自身は画面切り替えを行わず、
+                // ViewModelに「次へ進みたい」と伝えるだけにする
+                viewModel.moveToPage2();
             }
         });
     }
