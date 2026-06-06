@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -29,6 +30,17 @@ public class MainFragment extends Fragment {
             public void onClick(View v) {
                 // Fragment には finish() がないため、自分が乗っている Activity を取得して終了させる
                 requireActivity().finishAndRemoveTask();
+            }
+        });
+
+        Button buttonNext = view.findViewById(R.id.button_next);
+        buttonNext.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                getParentFragmentManager().beginTransaction()
+                        .replace(R.id.fragment_container, new SecondFragment())
+                        .addToBackStack(null) // 「戻る」操作の履歴（バックスタック）に残す
+                        .commit();
             }
         });
     }
