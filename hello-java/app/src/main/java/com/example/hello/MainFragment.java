@@ -39,7 +39,6 @@ public class MainFragment extends Fragment {
             public void onClick(View v) {
                 getParentFragmentManager().beginTransaction()
                         .replace(R.id.fragment_container, new SecondFragment())
-                        .addToBackStack(null) // 「戻る」操作の履歴（バックスタック）に残す
                         .commit();
             }
         });
