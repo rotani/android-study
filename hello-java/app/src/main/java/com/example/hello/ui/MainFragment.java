@@ -1,4 +1,4 @@
-package com.example.hello;
+package com.example.hello.ui;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -12,6 +12,8 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
+import com.example.hello.R;
+import com.example.hello.viewmodel.MainViewModel;
 
 public class MainFragment extends Fragment {
 

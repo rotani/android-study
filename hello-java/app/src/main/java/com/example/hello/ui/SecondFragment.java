@@ -1,4 +1,4 @@
-package com.example.hello;
+package com.example.hello.ui;
 
 import androidx.activity.OnBackPressedCallback;
 import android.os.Bundle;
@@ -11,6 +11,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import com.example.hello.R;
+import com.example.hello.viewmodel.MainViewModel;
 
 public class SecondFragment extends Fragment {
 

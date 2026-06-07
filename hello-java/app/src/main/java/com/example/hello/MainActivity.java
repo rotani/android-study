@@ -5,6 +5,10 @@ import androidx.appcompat.app.AppCompatActivity; // 通常の Activity ではな
 import androidx.lifecycle.Observer;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import com.example.hello.viewmodel.AppState;
+import com.example.hello.viewmodel.MainViewModel;
+import com.example.hello.ui.MainFragment;
+import com.example.hello.ui.SecondFragment;
 
 public class MainActivity extends AppCompatActivity {
     @Override

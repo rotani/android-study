@@ -1,4 +1,4 @@
-package com.example.hello;
+package com.example.hello.model;
 
 public class UserModel {
     // アプリ実行中のみメモリ上に保持されるデータ

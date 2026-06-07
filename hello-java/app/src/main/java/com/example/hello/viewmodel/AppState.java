@@ -1,4 +1,4 @@
-package com.example.hello;
+package com.example.hello.viewmodel;
 
 public enum AppState {
     PAGE_1,

@@ -1,8 +1,9 @@
-package com.example.hello;
+package com.example.hello.viewmodel;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
+import com.example.hello.model.UserModel;
 
 public class MainViewModel extends ViewModel {
 
