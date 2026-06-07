@@ -24,6 +24,15 @@ classDiagram
         class MainFragment
         class SecondFragment
     }
+
+    namespace Generated_Layer {
+        class FragmentMainBinding {
+            <<databinding>>
+        }
+        class FragmentSecondBinding {
+            <<databinding>>
+        }
+    }
     
     namespace ViewModel_Layer {
         class MainViewModel {
@@ -49,6 +58,8 @@ classDiagram
     Fragment <|-- SecondFragment : 継承 (extends)
     ViewModel <|-- MainViewModel : 継承 (extends)
     
+    MainFragment *-- FragmentMainBinding : 包含 (View Binding)
+    SecondFragment *-- FragmentSecondBinding : 包含 (View Binding)
     MainActivity ..> MainViewModel : 監視 (observe)
     MainFragment ..> MainViewModel : 報告 (submitName)
     MainViewModel o-- AppState : 状態を保持
@@ -59,7 +70,7 @@ classDiagram
 
 - **Model Layer（UserModel）**: アプリのデータ保持と、ビジネスロジック（「空文字はNG」といった絶対的なルール）を担当します。画面（UI）のことは一切知りません。
 - **ViewModel Layer**: アプリの「状態（AppStateやエラー表示）」を保持し、Viewからの報告を受け取ってModelに判断を仰ぎます。現場監督のような仲介役です。
-- **View Layer（Activity/Fragment）**: 画面の描画と、ユーザー操作の受け付けのみを担当する「バカなコンポーネント」です。自分で文字数を数えたりはせず、ただViewModelに報告します。
+- **View Layer（Activity/Fragment）**: 画面の描画と、ユーザー操作の受け付けのみを担当する「バカなコンポーネント」です。View Bindingにより、自動生成されたBindingクラスを包含（コンポジション）し、安全に画面部品を操作します。
 - **単方向データフロー**: View ➔ (報告) ➔ ViewModel ➔ (依頼) ➔ Model ➔ (結果) ➔ ViewModel ➔ (状態変更・通知) ➔ View という、一方通行の流れが実現されています。
 - **継承（`<|--`）**: `MainActivity`は`AppCompatActivity`を、`MainFragment`などは`Fragment`を、`MainViewModel`は`ViewModel`を継承し、Androidフレームワークの強力な機能を利用しています。
 

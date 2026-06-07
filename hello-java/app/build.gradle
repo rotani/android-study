@@ -13,6 +13,9 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+    buildFeatures {
+        viewBinding true
+    }
 }
 dependencies {
     // Fragment や最新の機能を使うためのライブラリを追加
