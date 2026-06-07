@@ -3,36 +3,33 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:padding="32dp">
 
     <TextView
-        android:id="@+id/text_view"
+        android:id="@+id/text_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="あなたのお名前は？"
-        android:textSize="20sp" />
-
-    <EditText
-        android:id="@+id/edit_text_name"
-        android:layout_width="250dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:hint="名前を入力"
-        android:inputType="text" />
+        android:text="IDLE"
+        android:textColor="#888888"
+        android:textSize="18sp"
+        android:textStyle="bold" />
 
     <TextView
-        android:id="@+id/text_error"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:textColor="#FF0000"
-        android:visibility="gone" />
-
-    <Button
-        android:id="@+id/button_next"
-        android:layout_width="wrap_content"
+        android:id="@+id/text_chat"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
-        android:text="次の画面へ" />
+        android:text="テキストがここに表示されます"
+        android:textAlignment="center"
+        android:textSize="22sp" />
+
+    <Button
+        android:id="@+id/button_mic"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:layout_marginTop="64dp"
+        android:text="🎤"
+        android:textSize="48sp" />
 
 </LinearLayout>

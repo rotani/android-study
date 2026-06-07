@@ -3,39 +3,35 @@ package com.example.hello.viewmodel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
-import com.example.hello.model.UserModel;
 
 public class MainViewModel extends ViewModel {
 
-    // 内部でだけ書き換え可能な MutableLiveData（初期値は PAGE_1）
-    private final MutableLiveData<AppState> _appState = new MutableLiveData<>(AppState.PAGE_1);
+    private final MutableLiveData<AppState> _appState = new MutableLiveData<>(AppState.IDLE);
+    private final MutableLiveData<String> _chatText = new MutableLiveData<>("マイクボタンを押して話しかけてください");
 
-    // Modelのインスタンスを生成・保持
-    private final UserModel userModel = new UserModel();
-
-    // UIにエラーを伝えるための状態
-    private final MutableLiveData<String> _errorMessage = new MutableLiveData<>();
-
-    // 外部（Activityなど）に公開するための読み取り専用 LiveData
     public LiveData<AppState> getAppState() {
         return _appState;
     }
 
-    public LiveData<String> getErrorMessage() {
-        return _errorMessage;
+    public LiveData<String> getChatText() {
+        return _chatText;
     }
 
-    public String getUserName() {
-        return userModel.getName();
-    }
-
-    // Viewから受け取った入力をModelに渡し、結果に応じて状態を更新する
-    public void submitName(String name) {
-        if (userModel.validateAndSetName(name)) {
-            _errorMessage.setValue(null); // エラーを消す
-            _appState.setValue(AppState.PAGE_2); // 2ページ目へ
-        } else {
-            _errorMessage.setValue("名前を入力してください"); // エラーを通知
+    public void onMicButtonClicked() {
+        AppState currentState = _appState.getValue();
+        
+        if (currentState == AppState.IDLE || currentState == AppState.ERROR) {
+            _appState.setValue(AppState.LISTENING);
+            _chatText.setValue("（録音中... あなたの声を拾っています）");
+        } else if (currentState == AppState.LISTENING) {
+            _appState.setValue(AppState.THINKING);
+            _chatText.setValue("（思考中... Gateway LLMと通信しています）");
+        } else if (currentState == AppState.THINKING) {
+            _appState.setValue(AppState.SPEAKING);
+            _chatText.setValue("こんにちは！私はあなたのパーソナルアシスタントです。");
+        } else if (currentState == AppState.SPEAKING) {
+            _appState.setValue(AppState.IDLE);
+            _chatText.setValue("マイクボタンを押して話しかけてください");
         }
     }
 }

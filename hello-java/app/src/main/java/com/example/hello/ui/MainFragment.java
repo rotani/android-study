@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.graphics.Color;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -11,6 +12,7 @@ import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import com.example.hello.databinding.FragmentMainBinding;
 import com.example.hello.viewmodel.MainViewModel;
+import com.example.hello.viewmodel.AppState;
 
 public class MainFragment extends Fragment {
 
@@ -34,27 +36,31 @@ public class MainFragment extends Fragment {
         // MainActivityが持っているのと同じ ViewModel を取得する
         MainViewModel viewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
 
-        // ViewModelからエラー状態を監視
-        viewModel.getErrorMessage().observe(getViewLifecycleOwner(), new Observer<String>() {
-            @Override
-            public void onChanged(String errorMsg) {
-                if (errorMsg != null) {
-                    // binding 経由で直接部品にアクセスする
-                    binding.textError.setText(errorMsg);
-                    binding.textError.setVisibility(View.VISIBLE);
-                } else {
-                    binding.textError.setVisibility(View.GONE);
-                }
+        viewModel.getAppState().observe(getViewLifecycleOwner(), state -> {
+            binding.textStatus.setText(state.name());
+            
+            switch (state) {
+                case IDLE:
+                case ERROR:
+                    binding.buttonMic.setBackgroundColor(Color.LTGRAY);
+                    break;
+                case LISTENING:
+                    binding.buttonMic.setBackgroundColor(Color.RED);
+                    break;
+                case THINKING:
+                    binding.buttonMic.setBackgroundColor(Color.YELLOW);
+                    break;
+                case SPEAKING:
+                    binding.buttonMic.setBackgroundColor(Color.GREEN);
+                    break;
             }
         });
 
-        binding.buttonNext.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // 入力された文字をViewModelに渡す
-                viewModel.submitName(binding.editTextName.getText().toString());
-            }
+        viewModel.getChatText().observe(getViewLifecycleOwner(), text -> {
+            binding.textChat.setText(text);
         });
+
+        binding.buttonMic.setOnClickListener(v -> viewModel.onMicButtonClicked());
     }
 
     // Fragmentのビューが破棄される時にbindingを空にする（メモリリーク対策の鉄則）
