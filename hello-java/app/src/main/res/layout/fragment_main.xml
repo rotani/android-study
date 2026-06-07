@@ -9,8 +9,24 @@
         android:id="@+id/text_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Hello, Fragment World!\n\n画面をタップすると終了します"
-        android:textSize="24sp" />
+        android:text="あなたのお名前は？"
+        android:textSize="20sp" />
+
+    <EditText
+        android:id="@+id/edit_text_name"
+        android:layout_width="250dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:hint="名前を入力"
+        android:inputType="text" />
+
+    <TextView
+        android:id="@+id/text_error"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textColor="#FF0000"
+        android:visibility="gone" />
 
     <Button
         android:id="@+id/button_next"

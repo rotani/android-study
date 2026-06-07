@@ -7,9 +7,10 @@
     android:background="#F0F8FF"> <!-- 薄い青色の背景 -->
 
     <TextView
+        android:id="@+id/text_greeting"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="2つ目の画面に遷移しました！"
+        android:text="ここに挨拶が表示されます"
         android:textSize="24sp" />
 
     <Button

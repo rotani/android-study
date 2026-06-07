@@ -6,9 +6,11 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 public class SecondFragment extends Fragment {
 
@@ -22,6 +24,12 @@ public class SecondFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+
+        // ViewModelから保存された名前を受け取って表示する
+        MainViewModel viewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
+        TextView textGreeting = view.findViewById(R.id.text_greeting);
+        String userName = viewModel.getUserName();
+        textGreeting.setText("こんにちは、" + userName + "さん！");
 
         // 戻るボタンの操作を横取り（ブロック）するコールバック
         OnBackPressedCallback callback = new OnBackPressedCallback(true) {
