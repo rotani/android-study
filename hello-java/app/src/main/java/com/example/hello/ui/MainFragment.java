@@ -1,12 +1,18 @@
 package com.example.hello.ui;
 
 import android.os.Bundle;
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.graphics.Color;
+import android.widget.Toast;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
@@ -18,6 +24,27 @@ public class MainFragment extends Fragment {
 
     // View Bindingのインスタンスを保持する変数
     private FragmentMainBinding binding;
+
+    // 権限要求の結果を受け取るランチャー
+    private ActivityResultLauncher<String> requestPermissionLauncher;
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        // 権限を要求した結果（許可されたか、拒否されたか）を受け取るコールバックを登録
+        requestPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                isGranted -> {
+                    if (isGranted) {
+                        // 許可されたら、ViewModelにマイクボタンが押されたことを伝える（録音開始）
+                        MainViewModel viewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
+                        viewModel.onMicButtonClicked();
+                    } else {
+                        // 拒否された場合はトースト（小さなポップアップ）で警告する
+                        Toast.makeText(requireContext(), "マイクの権限が許可されないと録音できません", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
 
     // 1. 画面の見た目（XML）を読み込んで実体化するメソッド
     @Nullable
@@ -60,7 +87,23 @@ public class MainFragment extends Fragment {
             binding.textChat.setText(text);
         });
 
-        binding.buttonMic.setOnClickListener(v -> viewModel.onMicButtonClicked());
+        // マイクボタンが押されたときの処理を、権限チェックでガードする
+        binding.buttonMic.setOnClickListener(v -> {
+            AppState currentState = viewModel.getAppState().getValue();
+            
+            if (currentState == AppState.IDLE || currentState == AppState.ERROR) {
+                // これから録音を開始しようとしている場合、権限があるかチェック
+                if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                    viewModel.onMicButtonClicked(); // すでに許可されていればそのまま進む
+                } else {
+                    // 許可されていない場合は、OS標準の許可ダイアログを表示する
+                    requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
+                }
+            } else {
+                // 録音中や思考中など、その他の状態の時はそのままViewModelに進めさせる
+                viewModel.onMicButtonClicked();
+            }
+        });
     }
 
     // Fragmentのビューが破棄される時にbindingを空にする（メモリリーク対策の鉄則）
