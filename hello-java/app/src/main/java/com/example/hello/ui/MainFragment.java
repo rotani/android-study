@@ -2,7 +2,11 @@ package com.example.hello.ui;
 
 import android.os.Bundle;
 import android.Manifest;
+import android.app.AlertDialog;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,6 +32,10 @@ public class MainFragment extends Fragment {
     // 権限要求の結果を受け取るランチャー
     private ActivityResultLauncher<String> requestPermissionLauncher;
 
+    // 連打防止用のタイムスタンプと、権限要求中を示すフラグ
+    private long lastClickTime = 0;
+    private boolean isRequestingPermission = false;
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,13 +43,30 @@ public class MainFragment extends Fragment {
         requestPermissionLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestPermission(),
                 isGranted -> {
+                    isRequestingPermission = false; // OSから返答が来たのでロックを解除
                     if (isGranted) {
                         // 許可されたら、ViewModelにマイクボタンが押されたことを伝える（録音開始）
                         MainViewModel viewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
                         viewModel.onMicButtonClicked();
                     } else {
-                        // 拒否された場合はトースト（小さなポップアップ）で警告する
-                        Toast.makeText(requireContext(), "マイクの権限が許可されないと録音できません", Toast.LENGTH_SHORT).show();
+                        // 拒否された場合、OSの仕様で「今後ダイアログを表示しない」状態になっているかチェック
+                        if (!shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO)) {
+                            // ダイアログが出なくなっているため、設定画面へ直接誘導する親切なダイアログを出す
+                            new AlertDialog.Builder(requireContext())
+                                    .setTitle("マイク権限が必要です")
+                                    .setMessage("音声入力を利用するには、アプリの設定画面からマイクの権限を「許可」に変更してください。")
+                                    .setPositiveButton("設定を開く", (dialog, which) -> {
+                                        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                                        Uri uri = Uri.fromParts("package", requireActivity().getPackageName(), null);
+                                        intent.setData(uri);
+                                        startActivity(intent);
+                                    })
+                                    .setNegativeButton("キャンセル", null)
+                                    .show();
+                        } else {
+                            // まだダイアログが出る余地がある場合は、トーストで警告のみ
+                            Toast.makeText(requireContext(), "マイクの権限が許可されないと録音できません", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
     }
@@ -89,6 +114,18 @@ public class MainFragment extends Fragment {
 
         // マイクボタンが押されたときの処理を、権限チェックでガードする
         binding.buttonMic.setOnClickListener(v -> {
+            // 1. 連打防止（デバウンス処理）：500ミリ秒以内の連続タップは完全に無視する
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastClickTime < 500) {
+                return;
+            }
+            lastClickTime = currentTime;
+
+            // 2. 権限要求中のロック：ダイアログが出ている最中はタップを無視する
+            if (isRequestingPermission) {
+                return;
+            }
+
             AppState currentState = viewModel.getAppState().getValue();
             
             if (currentState == AppState.IDLE || currentState == AppState.ERROR) {
@@ -96,6 +133,7 @@ public class MainFragment extends Fragment {
                 if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                     viewModel.onMicButtonClicked(); // すでに許可されていればそのまま進む
                 } else {
+                    isRequestingPermission = true; // 権限要求を開始したのでロックする
                     // 許可されていない場合は、OS標準の許可ダイアログを表示する
                     requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
                 }
