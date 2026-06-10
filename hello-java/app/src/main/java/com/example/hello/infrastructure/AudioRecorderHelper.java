@@ -1,4 +1,4 @@
-package com.example.hello.audio;
+package com.example.hello.infrastructure;
 
 import android.annotation.SuppressLint;
 import android.media.AudioFormat;
@@ -7,6 +7,7 @@ import android.media.MediaRecorder;
 import android.util.Log;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import com.example.hello.infrastructure.AudioDataListener;
 
 public class AudioRecorderHelper {
     private static final String TAG = "AudioRecorderHelper";
@@ -24,7 +25,7 @@ public class AudioRecorderHelper {
 
     // 「権限チェックはFragment側で既にやっているから警告を出さないで」というおまじない
     @SuppressLint("MissingPermission")
-    public void startRecording() {
+    public void startRecording(AudioDataListener listener) {
         if (isRecording.get()) return;
 
         // この設定で録音するために必要な最小のバッファ（メモリの受け皿）のサイズをOSに計算させる
@@ -52,6 +53,10 @@ public class AudioRecorderHelper {
                 int readResult = audioRecord.read(audioBuffer, 0, audioBuffer.length);
                 if (readResult > 0) {
                     // ここで実際のPCMバイナリデータ(audioBuffer)が取得できている！
+                     // ★コールバック関数を呼び出して、録音データを外（Repository）へ渡す
+                    if (listener != null) {
+                        listener.onAudioDataReceived(audioBuffer, readResult);
+                    }
                     // 今回は通信しないため、データが取れ続けていることだけをログに出力する
                     Log.d(TAG, "🎙️ 音声データを読み込みました: " + readResult + " bytes");
                 }

@@ -3,15 +3,15 @@ package com.example.hello.viewmodel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
-import com.example.hello.audio.AudioRecorderHelper;
+import com.example.hello.repository.AudioRepository;
 
 public class MainViewModel extends ViewModel {
 
     private final MutableLiveData<AppState> _appState = new MutableLiveData<>(AppState.IDLE);
     private final MutableLiveData<String> _chatText = new MutableLiveData<>("マイクボタンを押して話しかけてください");
 
-    // 録音専用クラスのインスタンス
-    private final AudioRecorderHelper audioRecorderHelper = new AudioRecorderHelper();
+    // Repositoryパターン導入
+    private final AudioRepository audioRepository = new AudioRepository(); 
 
     public LiveData<AppState> getAppState() {
         return _appState;
@@ -27,11 +27,11 @@ public class MainViewModel extends ViewModel {
         if (currentState == AppState.IDLE || currentState == AppState.ERROR) {
             _appState.setValue(AppState.LISTENING);
             _chatText.setValue("（録音中... あなたの声を拾っています）");
-            audioRecorderHelper.startRecording(); // 録音開始！
+            audioRepository.startRecording();; // 録音開始！
         } else if (currentState == AppState.LISTENING) {
             _appState.setValue(AppState.THINKING);
             _chatText.setValue("（思考中... Gateway LLMと通信しています）");
-            audioRecorderHelper.stopRecording(); // 録音停止！
+            audioRepository.stopRecording(); // 録音停止！
         } else if (currentState == AppState.THINKING) {
             _appState.setValue(AppState.SPEAKING);
             _chatText.setValue("こんにちは！私はあなたのパーソナルアシスタントです。");

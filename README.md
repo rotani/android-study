@@ -13,55 +13,52 @@ Cloud RunのGateway LLMと通信し、MCPと連動するAndroid音声/チャッ�
 
 ```mermaid
 classDiagram
-    namespace Android_Framework {
-        class AudioRecord {
-            +read()
-            +release()
-        }
-        class Thread {
-            +start()
-        }
+    class MainFragment {
+        -binding: FragmentMainBinding
+        +onViewCreated()
+    }
+    class MainViewModel {
+        -appState: MutableLiveData~AppState~
+        -audioRepository: AudioRepository
+        +onMicButtonClicked()
+    }
+    class AppState {
+        <<enumeration>>
+        IDLE
+        LISTENING
+        THINKING
+        SPEAKING
+        ERROR
+    }
+    class AudioRepository {
+        -audioQueue: LinkedBlockingQueue~byte[]~
+        -audioRecorderHelper: AudioRecorderHelper
+        +startRecording()
+        +stopRecording()
+    }
+    class AudioRecorderHelper {
+        -audioRecord: AudioRecord
+        -isRecording: AtomicBoolean
+        +startRecording(listener: AudioDataListener)
+        +stopRecording()
+    }
+    class AudioDataListener {
+        <<interface>>
+        +onAudioDataReceived(data: byte[], length: int)
     }
 
-    namespace UI_Layer {
-        class MainActivity
-        class MainFragment
-    }
-
-    namespace ViewModel_Layer {
-        class MainViewModel {
-            +onMicButtonClicked()
-        }
-        class AppState {
-            <<enumeration>>
-            IDLE
-            LISTENING
-            THINKING
-            SPEAKING
-            ERROR
-        }
-    }
-
-    namespace Infrastructure_Layer {
-        class AudioRecorderHelper {
-            -AtomicBoolean isRecording
-            +startRecording()
-            +stopRecording()
-        }
-    }
-    
-    MainActivity ..> MainFragment : 初期表示
-    MainFragment ..> MainViewModel : 監視 (observe) / 操作
-    MainViewModel o-- AppState : 状態を保持
-    MainViewModel o-- AudioRecorderHelper : 録音処理を委譲
-    AudioRecorderHelper *-- AudioRecord : 包含 (マイク制御)
-    AudioRecorderHelper *-- Thread : 包含 (非同期処理)
+    MainFragment --> MainViewModel : 監視 / 操作
+    MainViewModel --> AppState : 状態管理
+    MainViewModel --> AudioRepository : 録音指示
+    AudioRepository --> AudioRecorderHelper : 委譲
+    AudioRepository ..|> AudioDataListener : 実装 (ラムダ式)
+    AudioRecorderHelper --> AudioDataListener : コールバック
 ```
 
 ### 【クラス図の解説】
-- **UI Layer**: 画面の描画と、Android OS特有の「マイク権限（パーミッション）の要求」のみを担当します。録音の実処理は持ちません。
-- **ViewModel Layer**: アプリの状態（`IDLE`, `LISTENING`など）を管理し、UIからのボタンタップに応じて状態を遷移させます。
-- **Infrastructure Layer**: 外部リソース（今回はハードウェアのマイク）にアクセスする専門のクラスです。将来的にRepositoryパターンを導入し、ViewModelから直接触れないように隠蔽する予定です。
+- 関心の分離: Fragment(View) / ViewModel(UIの状態) / Repository(データ) / Infrastructure(ハードウェア制御) の各層が、自身の責務にのみ集中するよう綺麗に分離されています。 
+- 一方通行の依存関係: 矢印は常に左から右へ流れており、UI層がデータ層の詳細を知らない（ViewModelはAudioRepositoryしか知らない）疎結合な設計が実現できています。 
+- 依存関係逆転の原則: AudioRecorderHelperはAudioRepositoryを知りません。AudioDataListenerというインターフェース（契約）を介してコールバックすることで、RepositoryがHelperに依存するのではなく、両者が抽象（インターフェース）に依存する形となり、部品の独立性が高まっています。
 
 ---
 
@@ -71,57 +68,43 @@ classDiagram
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant View as MainFragment
+    actor User
+    participant UI as MainFragment
     participant VM as MainViewModel
+    participant Repo as AudioRepository
     participant Audio as AudioRecorderHelper
-    participant Thread as 録音スレッド
-    participant OS as Android OS (Mic)
+    participant Thread as RecordingThread<br/>(裏スレッド)
 
-    Note over View, Audio: --- 録音開始 (IDLE ➔ LISTENING) ---
-    User->>View: 1. マイクボタンをタップ
-    View->>View: 2. パーミッション(権限)チェック
-    View->>VM: 3. onMicButtonClicked()
-    activate VM
-    VM->>VM: 4. 状態を LISTENING に更新
-    VM->>Audio: 5. startRecording()
-    activate Audio
-    Audio->>OS: 6. マイクの初期化・占有
-    Audio->>Thread: 7. new Thread().start() (別スレッド起動)
-    activate Thread
-    Audio-->>VM: 
-    deactivate Audio
-    VM-->>View: 8. 状態変化通知 (ボタンを赤色に)
-    deactivate VM
+    User->>UI: マイクボタンをタップ
+    UI->>UI: 権限チェック (OK)
+    UI->>VM: onMicButtonClicked()
+    VM->>VM: 状態を LISTENING に更新
+    VM->>Repo: startRecording()
+    Repo->>Repo: キュー(audioQueue)をクリア
+    Repo->>Audio: startRecording(listener)
+    Audio->>Audio: AudioRecordの初期化
+    Audio->>Thread: スレッド起動 (start)
 
-    Note over Thread, OS: --- 録音中（非同期ループ） ---
-    loop isRecording が true の間
-        Thread->>OS: 9. audioRecord.read()
-        OS-->>Thread: 10. 音声データ(PCM) 640bytes
-        Thread->>Thread: 11. 同じバッファを上書き（GC回避）
+    rect rgb(240, 240, 240)
+        Note over Thread, Repo: 録音ループ (isRecording == true)
+        loop 数十ミリ秒ごと
+            Thread->>Thread: マイクから音声データを読み込み
+            Thread->>Repo: onAudioDataReceived(data, length)
+            Repo->>Repo: audioQueue.offer(data) <br/>(キューに格納 / 満杯なら破棄)
+        end
     end
 
-    Note over View, OS: --- 録音停止 (LISTENING ➔ THINKING) ---
-    User->>View: 12. マイクボタンを再度タップ
-    View->>VM: 13. onMicButtonClicked()
-    activate VM
-    VM->>VM: 14. 状態を THINKING に更新
-    VM->>Audio: 15. stopRecording()
-    activate Audio
-    Audio->>Audio: 16. isRecording = false (フラグを折る)
-    Audio->>OS: 17. audioRecord.release() (マイク解放)
-    Audio-->>VM: 
-    deactivate Audio
-    VM-->>View: 18. 状態変化通知 (ボタンを黄色に)
-    deactivate VM
-
-    Note over Thread, OS: --- スレッドの自然死 ---
-    Thread->>Thread: 19. whileループを抜け、処理終了
-    destroy Thread
-    Note right of Thread: 20. スレッドが破棄され、メモリが回収される
+    User->>UI: マイクボタンを再度タップ
+    UI->>VM: onMicButtonClicked()
+    VM->>VM: 状態を THINKING に更新
+    VM->>Repo: stopRecording()
+    Repo->>Audio: stopRecording()
+    Audio->>Thread: isRecording = false
+    Thread->>Thread: ループを抜けてスレッド終了
+    Audio->>Audio: AudioRecord解放 (release)
 ```
 
 ### 【シーケンス図の解説】
-- **非同期処理 (7〜11)**: 録音という重い処理をUIスレッドとは別の裏スレッド（`recordingThread`）で行うことで、画面のフリーズ（ANR）を防いでいます。
-- **バッファの使い回し (11)**: 音声データを受け取る配列（バッファ）をループ内で毎回 `new` するのではなく、同じ配列を上書きし続けることで、GC（ガベージコレクション）によるプチフリーズ（音飛び）を回避しています。
-- **安全な終了と解放 (16〜20)**: `stopRecording()` でループフラグを折ることでスレッドを自然終了させます。同時に `release()` を呼ぶことで、他アプリがマイクを使えなくなる不具合を確実に防いでいます。
+- **UIスレッドの保護**: `startRecording()`の呼び出しはUIスレッドで行われますが、重い録音処理は即座に裏スレッド(`RecordingThread`)に委譲されるため、画面がフリーズすることはありません。
+- **コールバックとキューイング**: 裏スレッドはマイクから読み取った音声データを`onAudioDataReceived`コールバックで`Repository`に通知します。`Repository`は受け取ったデータを`LinkedBlockingQueue`に格納（キューイング）します。
+- **バックプレッシャー（背圧）への対応**: `audioQueue.offer()`は、キューが満杯の時に処理をブロックせず、データを破棄して`false`を返します。これにより、将来実装する通信処理（消費者）が遅延しても、録音スレッドが詰まって音飛びしたり、アプリがクラッシュしたりするのを防ぐ安全装置として機能します。
