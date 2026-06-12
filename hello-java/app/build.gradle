@@ -26,4 +26,7 @@ dependencies {
     
     // Kotlinのバージョン衝突（Duplicate classエラー）を解決するためのBOMを追加
     implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.22')
+
+    // 通信ライブラリ OkHttp の追加
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

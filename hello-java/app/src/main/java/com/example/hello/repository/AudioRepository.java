@@ -3,6 +3,8 @@ package com.example.hello.repository;
 import android.util.Log;
 import com.example.hello.infrastructure.AudioDataListener;
 import com.example.hello.infrastructure.AudioRecorderHelper;
+import com.example.hello.repository.ResultListener;
+import com.example.hello.infrastructure.CloudRunApiClient;
 import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -10,6 +12,7 @@ public class AudioRepository {
     private static final String TAG = "AudioRepository";
     
     private AudioRecorderHelper audioRecorderHelper;
+    private CloudRunApiClient apiClient;
     
     // 音声データを一時保管するスレッドセーフなキュー（uITRONのデータキューに相当）
     // メモリ溢れを防ぐため、最大100個（数秒分）の容量制限を設ける
@@ -17,6 +20,7 @@ public class AudioRepository {
 
     public AudioRepository() {
         audioRecorderHelper = new AudioRecorderHelper();
+        apiClient = new CloudRunApiClient();
     }
 
     public void startRecording() {
@@ -37,5 +41,28 @@ public class AudioRepository {
 
     public void stopRecording() {
         audioRecorderHelper.stopRecording();
+    }
+
+    // テスト用：テキストを送信して結果を受け取る
+    public void sendTestMessage(String message, final ResultListener repositoryListener) {
+        // infrastructure層のコールバックを、repository層のコールバックへ変換するAdapter
+        CloudRunApiClient.StreamListener infrastructureListener = new CloudRunApiClient.StreamListener() {
+            @Override
+            public void onChunkReceived(String text) {
+                repositoryListener.onResult(text);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                repositoryListener.onError(e);
+            }
+
+            @Override
+            public void onComplete() {
+                repositoryListener.onComplete();
+            }
+        };
+
+        apiClient.sendTextStream(message, infrastructureListener);
     }
 }
