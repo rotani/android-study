@@ -140,6 +140,9 @@ public class MainFragment extends Fragment {
             AppState currentState = viewModel.getAppState().getValue();
             
             if (currentState == AppState.IDLE || currentState == AppState.ERROR) {
+                // ★ 録音開始時（またはエラー復帰時）に、裏側でトークンを最新化（有効期限切れ対策）しておく
+                signInWithGoogle();
+
                 // これから録音を開始しようとしている場合、権限があるかチェック
                 if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                     viewModel.onMicButtonClicked(); // すでに許可されていればそのまま進む
