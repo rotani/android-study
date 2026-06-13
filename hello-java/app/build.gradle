@@ -8,6 +8,11 @@ android {
         applicationId "com.example.hello"
         minSdk 24
         targetSdk 34
+        Properties properties = new Properties()
+        properties.load(project.rootProject.file('local.properties').newDataInputStream())
+        buildConfigField "String", "CLOUD_RUN_URL", "\"${properties.getProperty('CLOUD_RUN_URL')}\""
+        buildConfigField "String", "APP_SECRET_TOKEN", "\"${properties.getProperty('APP_SECRET_TOKEN')}\""
+        buildConfigField "String", "WEB_CLIENT_ID", "\"${properties.getProperty('WEB_CLIENT_ID')}\""
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -15,6 +20,7 @@ android {
     }
     buildFeatures {
         viewBinding true
+        buildConfig true
     }
 }
 dependencies {
@@ -29,4 +35,9 @@ dependencies {
 
     // 通信ライブラリ OkHttp の追加
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // Google Sign-In (Credential Manager) 用のライブラリ
+    implementation 'androidx.credentials:credentials:1.2.1'
+    implementation 'androidx.credentials:credentials-play-services-auth:1.2.1'
+    implementation 'com.google.android.libraries.identity.googleid:googleid:1.1.0'
 }

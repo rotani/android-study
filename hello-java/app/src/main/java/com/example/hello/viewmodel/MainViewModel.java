@@ -1,8 +1,11 @@
 package com.example.hello.viewmodel;
 
+import android.util.Log;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
+import org.json.JSONException;
+import org.json.JSONObject;
 import com.example.hello.repository.AudioRepository; 
 import com.example.hello.repository.ResultListener;
 
@@ -10,6 +13,7 @@ public class MainViewModel extends ViewModel {
 
     private final MutableLiveData<AppState> _appState = new MutableLiveData<>(AppState.IDLE);
     private final MutableLiveData<String> _chatText = new MutableLiveData<>("マイクボタンを押して話しかけてください");
+    private final StringBuilder responseBuilder = new StringBuilder(); // 受信テキストを蓄積するための変数
 
     // Repositoryパターン導入
     private final AudioRepository audioRepository = new AudioRepository(); 
@@ -22,6 +26,10 @@ public class MainViewModel extends ViewModel {
         return _chatText;
     }
 
+    public void setIdToken(String idToken) {
+        audioRepository.setIdToken(idToken);
+    }
+
     public void onMicButtonClicked() {
         AppState currentState = _appState.getValue();
         
@@ -32,6 +40,7 @@ public class MainViewModel extends ViewModel {
         } else if (currentState == AppState.LISTENING) {
             _appState.setValue(AppState.THINKING);
             _chatText.setValue("（思考中... Gateway LLMと通信しています）");
+            responseBuilder.setLength(0); // 新しい通信の前に、前回蓄積したテキストをクリアする
             audioRepository.stopRecording(); // 録音停止！
 
             // ★ クラウド通信のテスト！
@@ -39,19 +48,34 @@ public class MainViewModel extends ViewModel {
                 @Override
                 public void onResult(String text) {
                     // ※通信は裏スレッドで行われるため、UIを更新するには postValue() を使う！
-                    _chatText.postValue("受信中: " + text); // onChunkReceived から onResult に名前が変わっただけ
+                    try {
+                        // 文字列をJSONオブジェクトに変換
+                        JSONObject jsonObject = new JSONObject(text);
+                        
+                        // "speech_text" というキーが存在するかチェック
+                        if (jsonObject.has("speech_text")) {
+                            String speechText = jsonObject.getString("speech_text");
+                            Log.d("MainViewModel", "パース成功: " + speechText);
+                            responseBuilder.append(speechText);
+                            _chatText.postValue("受信中:\n" + responseBuilder.toString());
+                        }
+                    } catch (JSONException e) {
+                        // JSON形式でない、またはパースに失敗した場合は無視する（アプリが落ちないようにする）
+                    }
                 }
 
                 @Override
                 public void onError(Exception e) {
+                    Log.e("MainViewModel", "通信エラー", e);
                     _appState.postValue(AppState.ERROR);
                     _chatText.postValue("通信エラー: " + e.getMessage());
                 }
 
                 @Override
                 public void onComplete() {
+                    Log.d("MainViewModel", "通信完了");
                     _appState.postValue(AppState.SPEAKING);
-                    _chatText.postValue("通信完了！");
+                    _chatText.postValue("通信完了！\n" + responseBuilder.toString()); // 最後も蓄積したテキストを残す
                 }
             });
         } else if (currentState == AppState.THINKING) {

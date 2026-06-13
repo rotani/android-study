@@ -23,6 +23,10 @@ public class AudioRepository {
         apiClient = new CloudRunApiClient();
     }
 
+    public void setIdToken(String idToken) {
+        apiClient.setIdToken(idToken);
+    }
+
     public void startRecording() {
         Log.d(TAG, "録音開始指令を受け付けました。キューをクリアします。");
         audioQueue.clear();

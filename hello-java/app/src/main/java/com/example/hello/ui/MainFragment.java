@@ -12,15 +12,26 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.graphics.Color;
 import android.widget.Toast;
+import android.util.Log;
+import android.os.CancellationSignal;
+import java.util.concurrent.Executors;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
+import androidx.credentials.CredentialManager;
+import androidx.credentials.CredentialManagerCallback;
+import androidx.credentials.GetCredentialRequest;
+import androidx.credentials.GetCredentialResponse;
+import androidx.credentials.exceptions.GetCredentialException;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 import com.example.hello.databinding.FragmentMainBinding;
+import com.example.hello.BuildConfig;
 import com.example.hello.viewmodel.MainViewModel;
 import com.example.hello.viewmodel.AppState;
 
@@ -142,6 +153,59 @@ public class MainFragment extends Fragment {
                 viewModel.onMicButtonClicked();
             }
         });
+
+        // アプリ起動（画面表示）時にGoogleサインインを実行
+        signInWithGoogle();
+    }
+
+    // Googleサインインを実行し、IDトークンを取得するメソッド
+    private void signInWithGoogle() {
+        CredentialManager credentialManager = CredentialManager.create(requireContext());
+
+        // ★ここに「Web アプリケーション用」のクライアントIDを指定します（Android用ではありません！）
+        // trim() を使って、見えない空白や改行コード(\r\n)を完全に削ぎ落とす
+        String serverClientId = BuildConfig.WEB_CLIENT_ID.trim();
+        
+        Log.d("Auth", "Client ID Length: " + serverClientId.length() + ", Value: [" + serverClientId + "]");
+
+        GetGoogleIdOption googleIdOption = new GetGoogleIdOption.Builder()
+                .setFilterByAuthorizedAccounts(false)
+                .setServerClientId(serverClientId)
+                .setAutoSelectEnabled(true)
+                .build();
+
+        GetCredentialRequest request = new GetCredentialRequest.Builder()
+                .addCredentialOption(googleIdOption)
+                .build();
+
+        credentialManager.getCredentialAsync(
+                requireContext(),
+                request,
+                new CancellationSignal(),
+                Executors.newSingleThreadExecutor(),
+                new CredentialManagerCallback<GetCredentialResponse, GetCredentialException>() {
+                    @Override
+                    public void onResult(GetCredentialResponse result) {
+                        try {
+                            GoogleIdTokenCredential credential = GoogleIdTokenCredential.createFrom(result.getCredential().getData());
+                            String idToken = credential.getIdToken();
+                            // 取得成功！Logcatでトークンが取得できたか確認します
+                            Log.d("Auth", "Google Login Success! ID Token: " + idToken);
+                            
+                            // ViewModelに取得したトークンを渡す
+                            MainViewModel viewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
+                            viewModel.setIdToken(idToken);
+                        } catch (Exception e) {
+                            Log.e("Auth", "GoogleIdTokenCredential のパースエラー", e);
+                        }
+                    }
+
+                    @Override
+                    public void onError(GetCredentialException e) {
+                        Log.e("Auth", "サインイン失敗", e);
+                    }
+                }
+        );
     }
 
     // Fragmentのビューが破棄される時にbindingを空にする（メモリリーク対策の鉄則）

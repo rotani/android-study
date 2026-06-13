@@ -5,6 +5,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.concurrent.TimeUnit;
+import com.example.hello.BuildConfig;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.MediaType;
@@ -16,11 +17,8 @@ import okhttp3.Response;
 public class CloudRunApiClient {
     private static final String TAG = "CloudRunApiClient";
     
-    // TODO: 実際の Cloud Run の URL とトークンに置き換える
-    private static final String URL = "https://your-cloud-run-url.com/ask-mcp";
-    private static final String TOKEN = "YOUR_SECRET_TOKEN";
-    
     private final OkHttpClient client;
+    private String idToken = null; // Googleから取得したIDトークンを保持
 
     // コールバック用のインターフェース（AudioDataListenerの通信版）
     public interface StreamListener {
@@ -32,8 +30,14 @@ public class CloudRunApiClient {
     public CloudRunApiClient() {
         // LLMの返答は時間がかかる場合があるため、タイムアウトを長めに設定
         this.client = new OkHttpClient.Builder()
-                .readTimeout(60, TimeUnit.SECONDS)
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(120, TimeUnit.SECONDS)
                 .build();
+    }
+
+    // IDトークンをセットするメソッド
+    public void setIdToken(String idToken) {
+        this.idToken = idToken;
     }
 
     public void sendTextStream(String text, StreamListener listener) {
@@ -41,11 +45,17 @@ public class CloudRunApiClient {
         String jsonPayload = "{\"text\": \"" + text + "\"}";
         RequestBody body = RequestBody.create(jsonPayload, MediaType.get("application/json"));
 
-        Request request = new Request.Builder()
-                .url(URL)
-                .addHeader("x-mcp-token", TOKEN) // ヘッダーでトークンを渡す
-                .post(body)
-                .build();
+        Request.Builder requestBuilder = new Request.Builder()
+                .url(BuildConfig.CLOUD_RUN_URL)
+                .addHeader("x-mcp-token", BuildConfig.APP_SECRET_TOKEN)
+                .post(body);
+
+        // IDトークンがあれば Authorization ヘッダーに追加する
+        if (this.idToken != null) {
+            requestBuilder.addHeader("Authorization", "Bearer " + this.idToken);
+        }
+
+        Request request = requestBuilder.build();
 
         // 非同期(裏スレッド)でリクエストを送信
         client.newCall(request).enqueue(new Callback() {
