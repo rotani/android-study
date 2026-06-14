@@ -3,6 +3,7 @@ package com.example.hello.repository;
 import android.util.Log;
 import com.example.hello.infrastructure.AudioDataListener;
 import com.example.hello.infrastructure.AudioRecorderHelper;
+import com.example.hello.infrastructure.AudioPlayerHelper;
 import com.example.hello.repository.ResultListener;
 import com.example.hello.infrastructure.CloudRunApiClient;
 import java.util.Arrays;
@@ -12,6 +13,7 @@ public class AudioRepository {
     private static final String TAG = "AudioRepository";
     
     private AudioRecorderHelper audioRecorderHelper;
+    private AudioPlayerHelper audioPlayerHelper;
     private CloudRunApiClient apiClient;
     
     // 音声データを一時保管するスレッドセーフなキュー（uITRONのデータキューに相当）
@@ -20,6 +22,7 @@ public class AudioRepository {
 
     public AudioRepository() {
         audioRecorderHelper = new AudioRecorderHelper();
+        audioPlayerHelper = new AudioPlayerHelper();
         apiClient = new CloudRunApiClient();
     }
 
@@ -45,6 +48,11 @@ public class AudioRepository {
 
     public void stopRecording() {
         audioRecorderHelper.stopRecording();
+    }
+
+    // 音声データを再生する
+    public void playAudio(String base64Audio) {
+        audioPlayerHelper.playBase64Audio(base64Audio);
     }
 
     // テスト用：テキストを送信して結果を受け取る

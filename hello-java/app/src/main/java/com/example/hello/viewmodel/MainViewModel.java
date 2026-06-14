@@ -59,6 +59,12 @@ public class MainViewModel extends ViewModel {
                             responseBuilder.append(speechText);
                             _chatText.postValue("受信中:\n" + responseBuilder.toString());
                         }
+
+                    // "audio_pcm_base64" というキーが存在するかチェックし、あれば再生する
+                    if (jsonObject.has("audio_pcm_base64")) {
+                        String audioBase64 = jsonObject.getString("audio_pcm_base64");
+                        audioRepository.playAudio(audioBase64);
+                    }
                     } catch (JSONException e) {
                         // JSON形式でない、またはパースに失敗した場合は無視する（アプリが落ちないようにする）
                     }

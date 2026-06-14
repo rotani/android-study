@@ -18,6 +18,13 @@ classDiagram
             +getCredentialAsync()
         }
     }
+    namespace Generated_Layer {
+        class BuildConfig {
+            <<generated>>
+            +CLOUD_RUN_URL: String
+            +WEB_CLIENT_ID: String
+        }
+    }
     class MainFragment {
         -binding: FragmentMainBinding
         +onViewCreated()
@@ -40,6 +47,7 @@ classDiagram
     class AudioRepository {
         -audioQueue: LinkedBlockingQueue~byte[]~
         -audioRecorderHelper: AudioRecorderHelper
+        -audioPlayerHelper: AudioPlayerHelper
         -apiClient: CloudRunApiClient
         +setIdToken(idToken: String)
         +startRecording()
@@ -62,6 +70,12 @@ classDiagram
         <<interface>>
         +onAudioDataReceived(data: byte[], length: int)
     }
+    class AudioPlayerHelper {
+        -audioTrack: AudioTrack
+        -playbackQueue: LinkedBlockingQueue~byte[]~
+        -playbackThread: Thread
+        +playBase64Audio(base64Audio: String)
+    }
     class CloudRunApiClient {
         -client: OkHttpClient
         -idToken: String
@@ -83,12 +97,15 @@ classDiagram
 
     AudioRepository --> AudioRecorderHelper : 委譲
     AudioRepository ..|> AudioDataListener : 実装 (ラムダ式)
+    AudioRepository --> AudioPlayerHelper : 委譲
     AudioRecorderHelper --> AudioDataListener : コールバック
 
     AudioRepository --> CloudRunApiClient : 委譲
     AudioRepository ..|> StreamListener : 実装 (Adapter)
     AudioRepository --> ResultListener : 変換して通知
     CloudRunApiClient --> StreamListener : コールバック
+    CloudRunApiClient ..> BuildConfig : 設定値の参照
+    MainFragment ..> BuildConfig : 設定値の参照
 ```
 
 ### 【クラス図の解説】
@@ -97,6 +114,7 @@ classDiagram
 - 依存関係逆転の原則: AudioRecorderHelperはAudioRepositoryを知りません。AudioDataListenerというインターフェース（契約）を介してコールバックすることで、RepositoryがHelperに依存するのではなく、両者が抽象（インターフェース）に依存する形となり、部品の独立性が高まっています。
 - **Adapterパターンによる境界防衛**: `MainViewModel` (App層) が `StreamListener` (Infrastructure層) を直接知ることを防ぐため、Repository層に `ResultListener` を新設しました。`AudioRepository` がこれを中継（Adapterとして機能）することで、層をまたぐ直接的な依存を遮断しています。
 - **Androidフレームワークとの連携**: `MainFragment` はUIの描画だけでなく、OSの機能である `CredentialManager` と連携して安全にIDトークンを取得し、それをViewModelへ横流しする責務も担っています。
+- **自動生成クラスの活用**: `MainFragment` が保持している `FragmentMainBinding` や、環境依存の設定値を保持する `BuildConfig` は、ビルド時に自動生成されるクラスです。これらを活用することで、型安全なUI操作やセキュアな設定値の分離を実現しています。
 
 ---
 
@@ -159,6 +177,7 @@ sequenceDiagram
     participant UI as MainFragment
     participant VM as MainViewModel
     participant Repo as AudioRepository
+    participant Player as AudioPlayerHelper
     participant API as CloudRunApiClient
     participant Gateway as Gateway LLM<br/>(Cloud Run)
     participant MCP as MCP Server<br/>(ラズパイ)
@@ -197,6 +216,11 @@ sequenceDiagram
             Repo->>VM: onResult(jsonText)
             VM->>VM: JSONをパースして日本語テキストを抽出
             VM->>UI: _chatText.postValue(蓄積したテキスト)
+            opt audio_pcm_base64 が存在する場合
+                VM->>Repo: playAudio(base64Audio)
+                Repo->>Player: playBase64Audio(base64Audio)
+                Player->>Player: デコード & キューへ格納<br/>(別スレッドでAudioTrackへ順次書き込み)
+            end
         end
     end
     
@@ -209,6 +233,7 @@ sequenceDiagram
 ### 【シーケンス図の解説】 
 - MCPによる自律的な機能拡張: Androidアプリからは単に「こんにちは！」というテキストを投げただけですが、Gateway LLMが自律的に「天気を調べる必要がある」と判断し、ラズパイのMCPサーバーへツールの実行を依頼しています。Android側は外部APIの存在を一切意識せず、要約された結果だけを受け取ることができます。 
 - JSONのパースとUIの蓄積: Gateway LLMからは文字列だけでなく音声の生データ（Base64）を含んだ巨大なJSONが送られてきます。ViewModelは JSONObject を用いて必要な speech_text だけを抽出し、StringBuilder で過去のテキストに継ぎ足しながら画面を更新します。 
+- **非同期な音声再生 (プロデューサー・コンシューマー)**: パースされた音声データ（Base64）は `AudioPlayerHelper` に渡され、即座にバイナリデコードされてキューに格納されます。裏側では専用の再生スレッドがキューからデータを順次取り出し `AudioTrack` に流し込み続けるため、通信やUI描画のループを一切ブロックせずに滑らかな音声再生を実現しています。
 
 ---
 

@@ -13,6 +13,7 @@ import android.view.ViewGroup;
 import android.graphics.Color;
 import android.widget.Toast;
 import android.util.Log;
+import android.text.method.ScrollingMovementMethod;
 import android.os.CancellationSignal;
 import java.util.concurrent.Executors;
 import androidx.activity.result.ActivityResultLauncher;
@@ -46,6 +47,7 @@ public class MainFragment extends Fragment {
     // 連打防止用のタイムスタンプと、権限要求中を示すフラグ
     private long lastClickTime = 0;
     private boolean isRequestingPermission = false;
+    private long lastTokenFetchTime = 0; // トークン取得の最終時刻を保持
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -119,6 +121,9 @@ public class MainFragment extends Fragment {
             }
         });
 
+        // チャットテキストが長くなった場合に指でスクロールできるようにする
+        binding.textChat.setMovementMethod(new ScrollingMovementMethod());
+
         viewModel.getChatText().observe(getViewLifecycleOwner(), text -> {
             binding.textChat.setText(text);
         });
@@ -140,8 +145,11 @@ public class MainFragment extends Fragment {
             AppState currentState = viewModel.getAppState().getValue();
             
             if (currentState == AppState.IDLE || currentState == AppState.ERROR) {
-                // ★ 録音開始時（またはエラー復帰時）に、裏側でトークンを最新化（有効期限切れ対策）しておく
-                signInWithGoogle();
+                // ★ トークン取得から50分(3000000ミリ秒)以上経過している場合のみ更新する
+                // これにより、毎回「ログイン...」がチラ見えするのを防ぎつつ、期限切れを回避する
+                if (System.currentTimeMillis() - lastTokenFetchTime > 50 * 60 * 1000) {
+                    signInWithGoogle();
+                }
 
                 // これから録音を開始しようとしている場合、権限があるかチェック
                 if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
@@ -194,6 +202,7 @@ public class MainFragment extends Fragment {
                             String idToken = credential.getIdToken();
                             // 取得成功！Logcatでトークンが取得できたか確認します
                             Log.d("Auth", "Google Login Success! ID Token: " + idToken);
+                            lastTokenFetchTime = System.currentTimeMillis(); // 取得成功時刻を記録
                             
                             // ViewModelに取得したトークンを渡す
                             MainViewModel viewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
